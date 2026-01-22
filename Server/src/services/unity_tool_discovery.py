@@ -93,6 +93,7 @@ async def discover_and_register_unity_tools(mcp: FastMCP, unity_instance: str | 
                 )
 
                 # Apply @mcp.tool decorator
+                # Note: FastMCP infers inputSchema from function signature, no need to pass it
                 logger.info(f"[Unity Tool Discovery] Registering {tool_name} with FastMCP...")
                 mcp.tool(
                     name=tool_name,
@@ -130,6 +131,9 @@ def create_custom_tool_wrapper(tool_name: str, tool_def: Dict[str, Any]):
     """
     Creates a wrapper function that forwards calls to Unity's custom tool.
 
+    Uses exec() to dynamically generate functions with proper signatures
+    since FastMCP doesn't support **kwargs.
+
     Args:
         tool_name: Name of the Unity custom tool
         tool_def: Tool definition metadata from Unity
@@ -140,81 +144,109 @@ def create_custom_tool_wrapper(tool_name: str, tool_def: Dict[str, Any]):
     # Extract parameter definitions
     param_defs = tool_def.get("parameters", [])
 
-    # Create the wrapper function with dynamic signature
-    async def wrapper_func(ctx: Context) -> MCPResponse:
-        """Dynamically generated wrapper for Unity custom tool."""
-        unity_instance = get_unity_instance_from_context(ctx)
-        if not unity_instance:
-            return MCPResponse(
-                success=False,
-                message="No active Unity instance. Call set_active_instance with Name@hash from mcpforunity://instances.",
-            )
+    # Build parameter list for function signature
+    param_list = ["ctx: Context"]
+    param_names = []
 
-        # Forward all kwargs to Unity
-        try:
-            response = await send_with_unity_instance(
-                async_send_command_with_retry,
-                unity_instance,
-                tool_name,
-                {},
-            )
-
-            # Normalize response
-            if isinstance(response, MCPResponse):
-                return response
-
-            if isinstance(response, dict):
-                return MCPResponse(
-                    success=response.get("success", True),
-                    message=response.get("message"),
-                    error=response.get("error"),
-                    data=response.get("data", response) if "data" not in response else response["data"],
-                )
-
-            # Fallback for non-dict responses
-            return MCPResponse(
-                success=True,
-                data=response,
-                message=f"Tool {tool_name} executed successfully"
-            )
-
-        except Exception as ex:
-            logger.error(f"[Unity Tool Wrapper] Failed to execute {tool_name}: {ex}")
-            return MCPResponse(
-                success=False,
-                error=str(ex),
-                message=f"Failed to execute Unity tool {tool_name}"
-            )
-
-    # Set function metadata for FastMCP
-    wrapper_func.__name__ = tool_name
-    wrapper_func.__doc__ = tool_def.get("description", f"Custom Unity tool: {tool_name}")
-
-    # Add parameter annotations dynamically
-    # FastMCP will introspect the function signature
-    annotations = wrapper_func.__annotations__ = {"ctx": Context, "return": MCPResponse}
-
-    # Add parameter types from Unity metadata
     for param in param_defs:
         param_name = param.get("name")
-        param_type = param.get("type", "string")
+        param_type_str = param.get("type", "string").lower()
+        param_required = param.get("required", False)
 
-        # Map Unity types to Python types
+        # Map Unity types to Python type hints
         type_mapping = {
-            "string": str,
-            "int": int,
-            "float": float,
-            "bool": bool,
-            "object": dict,
-            "array": list,
+            "string": "str",
+            "int": "int",
+            "integer": "int",
+            "float": "float",
+            "number": "float",
+            "bool": "bool",
+            "boolean": "bool",
+            "object": "dict",
+            "array": "list",
         }
 
-        python_type = type_mapping.get(param_type.lower(), Any)
+        py_type = type_mapping.get(param_type_str, "Any")
 
-        # Make parameter optional if not required
-        if not param.get("required", False):
-            python_type = python_type | None
+        # Make optional if not required
+        if not param_required:
+            param_list.append(f"{param_name}: {py_type} | None = None")
+        else:
+            param_list.append(f"{param_name}: {py_type}")
 
-        annotations[param_name] = python_type
+        param_names.append(param_name)
+
+    # Generate function code dynamically
+    func_params = ", ".join(param_list)
+    params_dict = "{" + ", ".join([f"'{p}': {p}" for p in param_names]) + "}"
+
+    func_code = f'''
+async def {tool_name}_wrapper({func_params}) -> MCPResponse:
+    """Dynamically generated wrapper for Unity custom tool."""
+    unity_instance = get_unity_instance_from_context(ctx)
+    if not unity_instance:
+        return MCPResponse(
+            success=False,
+            message="No active Unity instance. Call set_active_instance with Name@hash from mcpforunity://instances.",
+        )
+
+    # Build parameters dict
+    params = {params_dict}
+    # Remove None values for optional parameters
+    params = {{k: v for k, v in params.items() if v is not None}}
+
+    try:
+        response = await send_with_unity_instance(
+            async_send_command_with_retry,
+            unity_instance,
+            "{tool_name}",
+            params,
+        )
+
+        # Normalize response
+        if isinstance(response, MCPResponse):
+            return response
+
+        if isinstance(response, dict):
+            return MCPResponse(
+                success=response.get("success", True),
+                message=response.get("message"),
+                error=response.get("error"),
+                data=response.get("data", response) if "data" not in response else response["data"],
+            )
+
+        # Fallback for non-dict responses
+        return MCPResponse(
+            success=True,
+            data=response,
+            message=f"Tool {tool_name} executed successfully"
+        )
+
+    except Exception as ex:
+        logger.error(f"[Unity Tool Wrapper] Failed to execute {tool_name}: {{ex}}")
+        return MCPResponse(
+            success=False,
+            error=str(ex),
+            message=f"Failed to execute Unity tool {tool_name}"
+        )
+'''
+
+    # Execute the function definition
+    namespace = {
+        "Context": Context,
+        "MCPResponse": MCPResponse,
+        "get_unity_instance_from_context": get_unity_instance_from_context,
+        "send_with_unity_instance": send_with_unity_instance,
+        "async_send_command_with_retry": async_send_command_with_retry,
+        "logger": logger,
+        "Any": Any,
+    }
+
+    exec(func_code, namespace)
+    wrapper_func = namespace[f"{tool_name}_wrapper"]
+
+    # Set metadata
+    wrapper_func.__name__ = tool_name
+    wrapper_func.__doc__ = tool_def.get("description", f"Custom Unity tool: {tool_name}")
 
     return wrapper_func
