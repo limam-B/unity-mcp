@@ -33,6 +33,7 @@ async def discover_and_register_unity_tools(mcp: FastMCP, unity_instance: str | 
         Dict with discovery results (success, tool_count, tools)
     """
     try:
+        logger.error(f"[Unity Tool Discovery] ⚠️⚠️⚠️ DISCOVERY FUNCTION CALLED ⚠️⚠️⚠️ instance={unity_instance}")
         logger.info(f"[Unity Tool Discovery] Querying Unity for custom tools (instance={unity_instance})")
 
         # Call Unity's list_unity_tools command to get custom tool definitions
