@@ -56,11 +56,11 @@ async def discover_and_register_unity_tools(mcp: FastMCP, unity_instance: str | 
             }
 
         # Extract tool definitions from response
-        logger.debug(f"[Unity Tool Discovery] Raw response: {response}")
+        logger.info(f"[Unity Tool Discovery] Raw response type: {type(response)}, keys: {response.keys() if isinstance(response, dict) else 'N/A'}")
         data = response.get("data", {})
-        logger.debug(f"[Unity Tool Discovery] Extracted data: {data}")
+        logger.info(f"[Unity Tool Discovery] Data keys: {data.keys() if isinstance(data, dict) else 'N/A'}")
         tools = data.get("tools", [])
-        logger.debug(f"[Unity Tool Discovery] Extracted tools count: {len(tools)}")
+        logger.info(f"[Unity Tool Discovery] Found {len(tools)} tools to register")
 
         if not tools:
             logger.info("[Unity Tool Discovery] No custom tools found in Unity")
@@ -81,19 +81,18 @@ async def discover_and_register_unity_tools(mcp: FastMCP, unity_instance: str | 
                     continue
 
                 # Create a wrapper function for this custom tool
-                logger.debug(f"[Unity Tool Discovery] Creating wrapper for tool: {tool_name}")
+                logger.info(f"[Unity Tool Discovery] Processing tool: {tool_name}")
                 wrapper_func = create_custom_tool_wrapper(tool_name, tool_def)
 
                 # Register with FastMCP
                 description = tool_def.get("description", f"Custom Unity tool: {tool_name}")
-                logger.debug(f"[Unity Tool Discovery] Tool {tool_name} description: {description[:100]}...")
                 annotations = ToolAnnotations(
                     title=tool_name,
                     destructiveHint=True,  # Custom tools may modify Unity state
                 )
 
                 # Apply @mcp.tool decorator
-                logger.debug(f"[Unity Tool Discovery] Registering {tool_name} with FastMCP...")
+                logger.info(f"[Unity Tool Discovery] Registering {tool_name} with FastMCP...")
                 mcp.tool(
                     name=tool_name,
                     description=description,
