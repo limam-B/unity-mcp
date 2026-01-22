@@ -163,15 +163,9 @@ namespace MCPForUnity.Editor.Helpers
                 return sourceOverride;
             }
 
-            // Default to PyPI package (avoids Windows long path issues with git clone)
-            string version = GetPackageVersion();
-            if (version == "unknown")
-            {
-                // Fall back to latest PyPI version so configs remain valid in test scenarios
-                return "mcpforunityserver";
-            }
-
-            return $"mcpforunityserver=={version}";
+            // Default to GitHub fork (includes stdio transport custom tool discovery)
+            // This ensures the fork works in Docker/CI environments without EditorPrefs
+            return "git+https://github.com/limam-B/unity-mcp#subdirectory=Server";
         }
 
         /// <summary>
