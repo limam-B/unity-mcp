@@ -141,7 +141,7 @@ def create_custom_tool_wrapper(tool_name: str, tool_def: Dict[str, Any]):
     param_defs = tool_def.get("parameters", [])
 
     # Create the wrapper function with dynamic signature
-    async def wrapper_func(ctx: Context, **kwargs) -> MCPResponse:
+    async def wrapper_func(ctx: Context) -> MCPResponse:
         """Dynamically generated wrapper for Unity custom tool."""
         unity_instance = get_unity_instance_from_context(ctx)
         if not unity_instance:
@@ -156,7 +156,7 @@ def create_custom_tool_wrapper(tool_name: str, tool_def: Dict[str, Any]):
                 async_send_command_with_retry,
                 unity_instance,
                 tool_name,
-                kwargs,
+                {},
             )
 
             # Normalize response
