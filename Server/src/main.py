@@ -5,6 +5,7 @@ from transport.unity_instance_middleware import (
 )
 from transport.legacy.unity_connection import get_unity_connection_pool, UnityConnectionPool
 from services.tools import register_all_tools
+from services.unity_tool_discovery import discover_and_register_unity_tools
 from core.telemetry import record_milestone, record_telemetry, MilestoneType, RecordType, get_package_version
 from services.resources import register_all_resources
 from transport.plugin_registry import PluginRegistry
@@ -189,6 +190,27 @@ async def server_lifespan(server: FastMCP) -> AsyncIterator[dict[str, Any]]:
                     _unity_connection_pool.get_connection()
                     logger.info(
                         "Connected to default Unity instance on startup")
+
+                    # Discover and register Unity custom tools (for stdio transport)
+                    # Defer by 2s to ensure Unity is fully initialized and to avoid handshake interference
+                    def _discover_unity_tools():
+                        try:
+                            loop = asyncio.new_event_loop()
+                            asyncio.set_event_loop(loop)
+                            try:
+                                result = loop.run_until_complete(
+                                    discover_and_register_unity_tools(server, unity_instance=None)
+                                )
+                                if result.get("success"):
+                                    logger.info(f"[Startup] {result.get('message', 'Unity tools discovered')}")
+                                else:
+                                    logger.warning(f"[Startup] Unity tool discovery failed: {result.get('error')}")
+                            finally:
+                                loop.close()
+                        except Exception as exc:
+                            logger.warning(f"[Startup] Unity tool discovery failed: {exc}", exc_info=True)
+
+                    threading.Timer(2.0, _discover_unity_tools).start()
 
                     # Record successful Unity connection (deferred)
                     threading.Timer(1.0, lambda: record_telemetry(
