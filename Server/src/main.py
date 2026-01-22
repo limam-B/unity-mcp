@@ -195,13 +195,9 @@ async def server_lifespan(server: FastMCP) -> AsyncIterator[dict[str, Any]]:
                     # Must happen BEFORE yield to be available in MCP handshake
                     try:
                         # Give Unity a moment to fully initialize
-                        import time
-                        time.sleep(1.0)
+                        await asyncio.sleep(1.0)
 
-                        loop = asyncio.get_event_loop()
-                        result = loop.run_until_complete(
-                            discover_and_register_unity_tools(server, unity_instance=None)
-                        )
+                        result = await discover_and_register_unity_tools(server, unity_instance=None)
                         if result.get("success"):
                             logger.info(f"[Startup] {result.get('message', 'Unity tools discovered')}")
                         else:
