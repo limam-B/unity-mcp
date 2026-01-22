@@ -192,25 +192,22 @@ async def server_lifespan(server: FastMCP) -> AsyncIterator[dict[str, Any]]:
                         "Connected to default Unity instance on startup")
 
                     # Discover and register Unity custom tools (for stdio transport)
-                    # Defer by 2s to ensure Unity is fully initialized and to avoid handshake interference
-                    def _discover_unity_tools():
-                        try:
-                            loop = asyncio.new_event_loop()
-                            asyncio.set_event_loop(loop)
-                            try:
-                                result = loop.run_until_complete(
-                                    discover_and_register_unity_tools(server, unity_instance=None)
-                                )
-                                if result.get("success"):
-                                    logger.info(f"[Startup] {result.get('message', 'Unity tools discovered')}")
-                                else:
-                                    logger.warning(f"[Startup] Unity tool discovery failed: {result.get('error')}")
-                            finally:
-                                loop.close()
-                        except Exception as exc:
-                            logger.warning(f"[Startup] Unity tool discovery failed: {exc}", exc_info=True)
+                    # Must happen BEFORE yield to be available in MCP handshake
+                    try:
+                        # Give Unity a moment to fully initialize
+                        import time
+                        time.sleep(1.0)
 
-                    threading.Timer(2.0, _discover_unity_tools).start()
+                        loop = asyncio.get_event_loop()
+                        result = loop.run_until_complete(
+                            discover_and_register_unity_tools(server, unity_instance=None)
+                        )
+                        if result.get("success"):
+                            logger.info(f"[Startup] {result.get('message', 'Unity tools discovered')}")
+                        else:
+                            logger.warning(f"[Startup] Unity tool discovery failed: {result.get('error')}")
+                    except Exception as exc:
+                        logger.warning(f"[Startup] Unity tool discovery failed: {exc}", exc_info=True)
 
                     # Record successful Unity connection (deferred)
                     threading.Timer(1.0, lambda: record_telemetry(
