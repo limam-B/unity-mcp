@@ -176,6 +176,28 @@ namespace MCPForUnity.Editor.Services
                 });
             }
 
+            // Also get all fields with [ToolParameter]
+            var fields = parametersType.GetFields(BindingFlags.Public | BindingFlags.Instance);
+
+            foreach (var field in fields)
+            {
+                var paramAttr = field.GetCustomAttribute<ToolParameterAttribute>();
+                if (paramAttr == null)
+                    continue;
+
+                string paramName = field.Name;
+                string paramType = GetParameterType(field.FieldType);
+
+                parameters.Add(new ParameterMetadata
+                {
+                    Name = paramName,
+                    Description = paramAttr.Description,
+                    Type = paramType,
+                    Required = paramAttr.Required,
+                    DefaultValue = paramAttr.DefaultValue
+                });
+            }
+
             return parameters;
         }
 
