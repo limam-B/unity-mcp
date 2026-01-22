@@ -56,8 +56,11 @@ async def discover_and_register_unity_tools(mcp: FastMCP, unity_instance: str | 
             }
 
         # Extract tool definitions from response
+        logger.debug(f"[Unity Tool Discovery] Raw response: {response}")
         data = response.get("data", {})
+        logger.debug(f"[Unity Tool Discovery] Extracted data: {data}")
         tools = data.get("tools", [])
+        logger.debug(f"[Unity Tool Discovery] Extracted tools count: {len(tools)}")
 
         if not tools:
             logger.info("[Unity Tool Discovery] No custom tools found in Unity")
@@ -78,16 +81,19 @@ async def discover_and_register_unity_tools(mcp: FastMCP, unity_instance: str | 
                     continue
 
                 # Create a wrapper function for this custom tool
+                logger.debug(f"[Unity Tool Discovery] Creating wrapper for tool: {tool_name}")
                 wrapper_func = create_custom_tool_wrapper(tool_name, tool_def)
 
                 # Register with FastMCP
                 description = tool_def.get("description", f"Custom Unity tool: {tool_name}")
+                logger.debug(f"[Unity Tool Discovery] Tool {tool_name} description: {description[:100]}...")
                 annotations = ToolAnnotations(
                     title=tool_name,
                     destructiveHint=True,  # Custom tools may modify Unity state
                 )
 
                 # Apply @mcp.tool decorator
+                logger.debug(f"[Unity Tool Discovery] Registering {tool_name} with FastMCP...")
                 mcp.tool(
                     name=tool_name,
                     description=description,
@@ -95,7 +101,7 @@ async def discover_and_register_unity_tools(mcp: FastMCP, unity_instance: str | 
                 )(wrapper_func)
 
                 registered_tools.append(tool_name)
-                logger.info(f"[Unity Tool Discovery] Registered custom tool: {tool_name}")
+                logger.info(f"[Unity Tool Discovery] ✓ Registered custom tool: {tool_name}")
 
             except Exception as ex:
                 logger.error(f"[Unity Tool Discovery] Failed to register tool {tool_def.get('name')}: {ex}")
