@@ -25,7 +25,7 @@
 
 * **Unity 2021.3 LTS+** — [下载 Unity](https://unity.com/download)
 * **Python 3.10+** 和 **uv** — [安装 uv](https://docs.astral.sh/uv/getting-started/installation/)
-* **一个 MCP 客户端** — [Claude Desktop](https://claude.ai/download) | [Cursor](https://www.cursor.com/en/downloads) | [VS Code Copilot](https://code.visualstudio.com/docs/copilot/overview) | [Windsurf](https://windsurf.com)
+* **一个 MCP 客户端** — [Claude Desktop](https://claude.ai/download) | [Cursor](https://www.cursor.com/en/downloads) | [VS Code Copilot](https://code.visualstudio.com/docs/copilot/overview) | [GitHub Copilot CLI](https://docs.github.com/en/copilot/concepts/agents/about-copilot-cli) | [Windsurf](https://windsurf.com)
 
 ### 1. 安装 Unity 包
 
@@ -36,9 +36,9 @@
 > https://github.com/CoplayDev/unity-mcp.git?path=/MCPForUnity
 > ```
 
-**需要一个稳定/固定版本？** 使用带 tag 的 URL（更新时需要卸载才能更新）：
+**想要最新的 beta 版本？** 使用 beta 分支：
 ```text
-https://github.com/CoplayDev/unity-mcp.git?path=/MCPForUnity#v9.1.0
+https://github.com/CoplayDev/unity-mcp.git?path=/MCPForUnity#beta
 ```
 
 <details>
@@ -113,15 +113,15 @@ openupm add com.coplaydev.unity-mcp
 ```
 
 <details>
-<summary>Stdio 配置（旧版）</summary>
+<summary>Stdio 配置（uvx）</summary>
 
 **macOS/Linux：**
 ```json
 {
   "mcpServers": {
     "unityMCP": {
-      "command": "uv",
-      "args": ["run", "--directory", "/Users/YOUR_USERNAME/Library/AppSupport/UnityMCP/UnityMcpServer/src", "server.py", "--transport", "stdio"]
+      "command": "uvx",
+      "args": ["--from", "mcpforunityserver", "mcp-for-unity", "--transport", "stdio"]
     }
   }
 }
@@ -132,8 +132,8 @@ openupm add com.coplaydev.unity-mcp
 {
   "mcpServers": {
     "unityMCP": {
-      "command": "C:/Users/YOUR_USERNAME/AppData/Local/Microsoft/WinGet/Links/uv.exe",
-      "args": ["run", "--directory", "C:/Users/YOUR_USERNAME/AppData/Local/UnityMCP/UnityMcpServer/src", "server.py", "--transport", "stdio"]
+      "command": "C:/Users/YOUR_USERNAME/AppData/Local/Microsoft/WinGet/Links/uvx.exe",
+      "args": ["--from", "mcpforunityserver", "mcp-for-unity", "--transport", "stdio"]
     }
   }
 }
@@ -157,8 +157,8 @@ MCP for Unity 支持多个 Unity Editor 实例。要将操作定向到某个特�
 要使用能捕获未定义命名空间、类型和方法的 **Strict** 验证：
 
 1. 安装 [NuGetForUnity](https://github.com/GlitchEnzo/NuGetForUnity)
-2. `Window > NuGet Package Manager` → 安装 `Microsoft.CodeAnalysis` v4.14.0
-3. 同时安装 `SQLitePCLRaw.core` 和 `SQLitePCLRaw.bundle_e_sqlite3`
+2. `Window > NuGet Package Manager` → 安装 `Microsoft.CodeAnalysis` v5.0
+3. 同时安装 `SQLitePCLRaw.core` 和 `SQLitePCLRaw.bundle_e_sqlite3` v3.0.2
 4. 在 `Player Settings > Scripting Define Symbols` 中添加 `USE_ROSLYN`
 5. 重启 Unity
 
